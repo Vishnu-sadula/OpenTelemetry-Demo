@@ -42,7 +42,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300M
+          memory: 120M
     restart: unless-stopped
     ports:
       - "${AD_PORT}"
@@ -84,7 +84,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 160M
+          memory: 80M
     restart: unless-stopped
     ports:
       - "${CART_PORT}"
@@ -119,7 +119,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 40M
     restart: unless-stopped
     ports:
       - "${CHECKOUT_PORT}"
@@ -177,7 +177,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 45M
     restart: unless-stopped
     ports:
       - "${CURRENCY_PORT}"
@@ -248,7 +248,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 150M
+          memory: 100M
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT}"
@@ -316,7 +316,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 65M
+          memory: 80M
     restart: unless-stopped
     ports:
       - "${ENVOY_PORT}:${ENVOY_PORT}"
@@ -377,7 +377,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 120M
+          memory: 100M
     restart: unless-stopped
     ports:
       - "${IMAGE_PROVIDER_PORT}"
@@ -410,7 +410,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1500M
+          memory: 80M
     restart: unless-stopped
     ports:
       - "${LOCUST_WEB_PORT}"
@@ -452,10 +452,10 @@ services:
       dockerfile: ${PAYMENT_DOCKERFILE}
       cache_from:
         - ${IMAGE_NAME}:${IMAGE_VERSION}-payment
-    deploy:
+    deploy: 
       resources:
         limits:
-          memory: 80M
+          memory: 50M
     restart: unless-stopped
     ports:
       - "${PAYMENT_PORT}"
@@ -502,7 +502,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 50M
     restart: unless-stopped
     ports:
       - "${PRODUCT_CATALOG_PORT}"
@@ -676,7 +676,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 50M
     restart: unless-stopped
     ports:
       - "${SHIPPING_PORT}"
@@ -714,8 +714,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 75M
-    restart: unless-stopped
+          memory: 120M
     environment:
       - FLAGD_OTEL_COLLECTOR_URI=${OTEL_COLLECTOR_HOST}:${OTEL_COLLECTOR_PORT_GRPC}
       - FLAGD_METRICS_EXPORTER=otel
@@ -855,6 +854,27 @@ services:
       - ./src/postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
     logging: *logging
 
+  # LLM used by Product Review service
+  llm:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-llm
+    container_name: llm
+    build:
+      context: ./
+      dockerfile: ${LLM_DOCKERFILE}
+      cache_from:
+        - ${IMAGE_NAME}:${IMAGE_VERSION}-llm
+    deploy:
+      resources:
+        limits:
+          memory: 75M
+    restart: unless-stopped
+    environment:
+      - FLAGD_HOST
+      - FLAGD_PORT
+    ports:
+      - "${LLM_PORT}"
+    logging: *logging
+
   # Valkey used by Cart service
   valkey-cart:
     image: ${VALKEY_IMAGE}
@@ -863,7 +883,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 50M
     restart: unless-stopped
     ports:
       - "${VALKEY_PORT}"
@@ -878,6 +898,48 @@ services:
   # ********************
   # Telemetry Components
   # ********************
+  # Jaeger
+  jaeger:
+    image: ${JAEGERTRACING_IMAGE}
+    container_name: jaeger
+    command:
+      - "--config=file:/etc/jaeger/config.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_UI_PORT}"
+      - "${JAEGER_GRPC_PORT}"
+    environment:
+      - JAEGER_HOST
+      - JAEGER_GRPC_PORT
+      - PROMETHEUS_ADDR
+      - OTEL_COLLECTOR_HOST
+      - OTEL_COLLECTOR_PORT_HTTP
+      - MEMORY_MAX_TRACES=5000
+    volumes:
+      - ./src/jaeger/config.yml:/etc/jaeger/config.yml
+    logging: *logging
+
+  # Grafana
+  grafana:
+    image: ${GRAFANA_IMAGE}
+    container_name: grafana
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-opensearch-datasource"
+    volumes:
+      - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./src/grafana/provisioning/:/etc/grafana/provisioning/
+    ports:
+      - "${GRAFANA_PORT}"
+    logging: *logging
 
   # OpenTelemetry Collector
   # Base configuration: receives and processes telemetry, exports to debug only.
@@ -888,7 +950,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 120M
+          memory: 150M
     restart: unless-stopped
     command:
       - --config=/etc/otelcol-config.yml
@@ -942,7 +1004,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 200M
+          memory: 100M
     restart: unless-stopped
     ports:
       - "${PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
@@ -962,7 +1024,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 500M
     restart: unless-stopped
     environment:
       - cluster.name=demo-cluster
