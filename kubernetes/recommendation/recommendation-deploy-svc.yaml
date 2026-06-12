@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentelemetry-demo-recommendationservice
+  labels:
+    app.kubernetes.io/component: recommendationservice
+    app.kubernetes.io/name: opentelemetry-demo-recommendationservice
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      opentelemetry.io/name: opentelemetry-demo-recommendationservice
+  template:
+    metadata:
+      labels:
+        opentelemetry.io/name: opentelemetry-demo-recommendationservice
+        app.kubernetes.io/component: recommendationservice
+    spec:
+      serviceAccountName: opentelemetry-demo
+      containers:
+        - name: recommendationservice
+          image: ghcr.io/open-telemetry/demo:1.12.0-recommendationservice
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: service
+          resources:
+            limits:
+              memory: 500Mi
+          env:
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: OTEL_COLLECTOR_NAME
+              value: opentelemetry-demo-otelcol
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: cumulative
+            - name: RECOMMENDATION_SERVICE_PORT
+              value: "8080"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: opentelemetry-demo-productcatalogservice:8080
+            - name: OTEL_PYTHON_LOG_CORRELATION
+              value: "true"
+            - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+              value: python
+            - name: FLAGD_HOST
+              value: opentelemetry-demo-flagd
+            - name: FLAGD_PORT
+              value: "8013"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://$(OTEL_COLLECTOR_NAME):4317
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=1.12.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentelemetry-demo-recommendationservice
+  labels:
+    app.kubernetes.io/component: recommendationservice
+    app.kubernetes.io/name: opentelemetry-demo-recommendationservice
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      name: tcp-service
+      targetPort: 8080
+  selector:
+    opentelemetry.io/name: opentelemetry-demo-recommendationservice
