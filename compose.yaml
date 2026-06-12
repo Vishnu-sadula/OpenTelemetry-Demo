@@ -866,13 +866,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 75M
+          memory: 200M 
     restart: unless-stopped
     environment:
-      - FLAGD_HOST
-      - FLAGD_PORT
+      - FLAGD_HOST=${FLAGD_HOST:-localhost} 
+      - FLAGD_PORT=${FLAGD_PORT:-8013}
     ports:
-      - "${LLM_PORT}"
+      - "${LLM_PORT}:${LLM_PORT}" 
     logging: *logging
 
   # Valkey used by Cart service
