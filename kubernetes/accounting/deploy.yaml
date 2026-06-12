@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentelemetry-demo-accountingservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      opentelemetry.io/name: opentelemetry-demo-accountingservice
+  template:
+    metadata:
+      labels:
+        opentelemetry.io/name: opentelemetry-demo-accountingservice
+        app.kubernetes.io/component: accountingservice
+    spec:
+      serviceAccountName: opentelemetry-demo
+      initContainers:
+        - name: wait-for-kafka
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - until nc -z -v -w30 opentelemetry-demo-kafka 9092; do echo waiting for kafka; sleep 2; done;
+      containers:
+        - name: accountingservice
+          image: ghcr.io/open-telemetry/demo:1.12.0-accountingservice
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: OTEL_COLLECTOR_NAME
+              value: opentelemetry-demo-otelcol
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: cumulative
+            - name: KAFKA_SERVICE_ADDR
+              value: opentelemetry-demo-kafka:9092
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://$(OTEL_COLLECTOR_NAME):4318
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=1.12.0
+          resources:
+            limits:
+              memory: 120Mi
