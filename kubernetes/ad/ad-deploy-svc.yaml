@@ -6,12 +6,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      opentelemetry.io/name: opentelemetry-demo-adservice
+      app: adservice
   template:
     metadata:
       labels:
-        opentelemetry.io/name: opentelemetry-demo-adservice
-        app.kubernetes.io/component: adservice
+        app: adservice
     spec:
       serviceAccountName: opentelemetry-demo
       containers:
@@ -23,9 +22,7 @@ spec:
               name: service
           env:
             - name: OTEL_SERVICE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['app.kubernetes.io/component']
+              value: adservice
             - name: OTEL_COLLECTOR_NAME
               value: opentelemetry-demo-otelcol
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -47,7 +44,7 @@ spec:
               memory: 300Mi
 ---
 apiVersion: v1
-kind: service
+kind: Service
 metadata:
   name: opentelemetry-demo-adservice
 spec:
@@ -57,4 +54,4 @@ spec:
       name: tcp-service
       targetPort: 8080
   selector:
-    opentelemetry.io/name: opentelemetry-demo-adservice
+    app: adservice
